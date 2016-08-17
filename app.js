@@ -67,8 +67,8 @@ passport.deserializeUser(function(id, done) {
 passport.use(new OIDCStrategy({
     callbackURL: 'http://localhost:3979/api/OAuthCallback',
     realm: 'common',
-    clientID: '0031dabf-9fa3-4176-8e43-6543f85f4dd8',
-    clientSecret: 'mzZgVeSeea0Lw5ezX7wRtwp',
+    clientID: process.env.MICROSOFT_APP_ID,
+    clientSecret: process.env.MICROSOFT_APP_PASSWORD,
     identityMetadata: 'https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration',
     skipUserProfile: true,
     responseType: 'code',
@@ -76,6 +76,8 @@ passport.use(new OIDCStrategy({
     scope: ['email', 'profile']
   },
   function(iss, sub, profile, accessToken, refreshToken, done) {
+  	console.log(profile);
+
     if (!profile.email) {
       return done(new Error("No email found"), null);
     }
