@@ -70,7 +70,7 @@ passport.deserializeUser(function(id, done) {
 });
 
 passport.use(new OIDCStrategy({
-    callbackURL: 'http://localhost:3979/api/OAuthCallback',
+    callbackURL: 'https://authbot.azurewebsites.net/api/OAuthCallback',
     realm: 'common',
     clientID: process.env.MICROSOFT_APP_ID,
     clientSecret: process.env.MICROSOFT_APP_PASSWORD,
