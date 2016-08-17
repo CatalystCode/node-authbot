@@ -1,0 +1,26 @@
+{
+  "name": "node-bot-framework-auth-example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bnookala/node-bot-framework-auth-example.git"
+  },
+  "author": "Bhargav Nookala <nooknb@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bnookala/node-bot-framework-auth-example/issues"
+  },
+  "homepage": "https://github.com/bnookala/node-bot-framework-auth-example#readme",
+  "dependencies": {
+    "botbuilder": "^3.2.3",
+    "passport": "^0.3.2",
+    "passport-azure-ad": "^2.0.0",
+    "request": "^2.74.0",
+    "restify": "^4.1.1"
+  }
+}
