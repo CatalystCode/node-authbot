@@ -1,6 +1,7 @@
 var restify = require('restify');
 var builder = require('botbuilder');
 var passport = require('passport');
+var OIDCStrategy = require('passport-azure-ad').OIDCStrategy;
 
 //=========================================================
 // Bot Setup
@@ -8,7 +9,7 @@ var passport = require('passport');
 
 // Setup Restify Server
 var server = restify.createServer();
-server.listen(process.env.port || process.env.PORT || 3978, function () {
+server.listen(process.env.port || process.env.PORT || 3979, function () {
    console.log('%s listening to %s', server.name, server.url); 
 });
   
@@ -19,7 +20,81 @@ var connector = new builder.ChatConnector({
 });
 var bot = new builder.UniversalBot(connector);
 server.post('/api/messages', connector.listen());
+//=========================================================
+// Auth Setup
+//=========================================================
 
+// logged in users
+var users = [];
+
+var findByEmail = function (email, fn) {
+  for (var i = 0, len = users.length; i < len; i++) {
+    var user = users[i];
+    if (user.email === email) {
+      return fn(null, user);
+    }
+  }
+  return fn(null, null);
+};
+
+server.use(restify.queryParser());
+server.use(passport.initialize());
+
+server.get('/login',
+  passport.authenticate('azuread-openidconnect', { failureRedirect: '/login' }),
+  function (req, res) {
+    console.log('Login');
+  });
+
+server.get('/api/OAuthCallback',
+  passport.authenticate('azuread-openidconnect', { failureRedirect: '/login' }),
+  function (req, res) {
+    console.log('Returned from AzureAD.');
+    res.send('Welcome ' + req.user.displayName);
+  });
+
+passport.serializeUser(function(user, done) {
+    console.log('passport.serializeUser');
+    done(null, user.email);
+});
+passport.deserializeUser(function(id, done) {
+    console.log('passport.deserializeUser');
+  findByEmail(id, function (err, user) {
+    done(err, user);
+  });
+});
+
+passport.use(new OIDCStrategy({
+    callbackURL: 'http://localhost:3979/api/OAuthCallback',
+    realm: 'common',
+    clientID: '0031dabf-9fa3-4176-8e43-6543f85f4dd8',
+    clientSecret: 'mzZgVeSeea0Lw5ezX7wRtwp',
+    identityMetadata: 'https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration',
+    skipUserProfile: true,
+    responseType: 'code',
+    responseMode: 'query',
+    scope: ['email', 'profile']
+  },
+  function(iss, sub, profile, accessToken, refreshToken, done) {
+    if (!profile.email) {
+      return done(new Error("No email found"), null);
+    }
+    // asynchronous verification, for effect...
+    process.nextTick(function () {
+      findByEmail(profile.email, function(err, user) {
+        if (err) {
+          return done(err);
+        }
+        if (!user) {
+          // "Auto-registration"
+          users.push(profile);
+          return done(null, profile);
+        }
+        return done(null, user);
+      });
+    });
+  }
+));
 //=========================================================
 // Bots Dialogs
 //=========================================================
