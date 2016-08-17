@@ -20,6 +20,10 @@ var connector = new builder.ChatConnector({
 });
 var bot = new builder.UniversalBot(connector);
 server.post('/api/messages', connector.listen());
+server.get('/', restify.serveStatic({
+    'directory': __dirname,
+    'default': 'index.html'
+}));
 //=========================================================
 // Auth Setup
 //=========================================================
@@ -50,6 +54,7 @@ server.get('/api/OAuthCallback',
   passport.authenticate('azuread-openidconnect', { failureRedirect: '/login' }),
   function (req, res) {
     console.log('Returned from AzureAD.');
+    console.log(req);
     res.send('Welcome ' + req.user.displayName);
   });
 
