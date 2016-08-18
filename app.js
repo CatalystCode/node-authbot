@@ -97,7 +97,7 @@ let oidStrategyv1 = {
     responseMode: 'query'
 };
 
-passport.use(new OIDCStrategy(oidStrategyv1,
+passport.use(new OIDCStrategy(oidStrategyv2,
   function(iss, sub, profile, accessToken, refreshToken, done) {
   	console.log(profile);
 
