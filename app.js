@@ -69,8 +69,9 @@ passport.deserializeUser(function(id, done) {
   });
 });
 
-passport.use(new OIDCStrategy({
-    callbackURL: 'https://authbot.azurewebsites.net/api/OAuthCallback',
+// Use the v2 endpoint (applications configured by apps.dev.microsoft.com)
+let oidStrategyv2 = {
+    callbackURL: 'http://localhost:3979/api/OAuthCallback',
     realm: 'common',
     clientID: process.env.MICROSOFT_APP_ID,
     clientSecret: process.env.MICROSOFT_APP_PASSWORD,
@@ -79,7 +80,22 @@ passport.use(new OIDCStrategy({
     responseType: 'code',
     responseMode: 'query',
     scope: ['email', 'profile']
-  },
+};
+
+// Use the v1 endpoint (applications configured by manage.windowsazure.com)
+let oidStrategyv1 = {
+    callbackURL: 'http://localhost:3979/api/OAuthCallback',
+    realm: process.env.MICROSOFT_REALM,
+    clientID: process.env.MICROSOFT_CLIENTID,
+    clientSecret: process.env.MICROSOFT_CLIENTSECRET,
+    oidcIssuer: undefined,
+    identityMetadata: 'https://login.microsoftonline.com/common/.well-known/openid-configuration',
+    skipUserProfile: true,
+    responseType: 'id_token code',
+    responseMode: 'query'
+};
+
+passport.use(new OIDCStrategy(oidStrategyv1,
   function(iss, sub, profile, accessToken, refreshToken, done) {
   	console.log(profile);
 
@@ -102,6 +118,7 @@ passport.use(new OIDCStrategy({
     });
   }
 ));
+
 //=========================================================
 // Bots Dialogs
 //=========================================================
