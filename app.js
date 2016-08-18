@@ -73,7 +73,7 @@ passport.deserializeUser(function(id, done) {
 
 // Use the v2 endpoint (applications configured by apps.dev.microsoft.com)
 let oidStrategyv2 = {
-    callbackURL: process.env.AUTHBOTH_CALLBACKHOST + '/api/OAuthCallback',
+    callbackURL: process.env.AUTHBOT_CALLBACKHOST + '/api/OAuthCallback',
     realm: 'common',
     clientID: process.env.MICROSOFT_APP_ID,
     clientSecret: process.env.MICROSOFT_APP_PASSWORD,
@@ -86,18 +86,26 @@ let oidStrategyv2 = {
 
 // Use the v1 endpoint (applications configured by manage.windowsazure.com)
 let oidStrategyv1 = {
-    callbackURL: process.env.AUTHBOTH_CALLBACKHOST +'/api/OAuthCallback',
+    callbackURL: process.env.AUTHBOT_CALLBACKHOST +'/api/OAuthCallback',
     realm: process.env.MICROSOFT_REALM,
     clientID: process.env.MICROSOFT_CLIENT_ID,
     clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
     oidcIssuer: undefined,
     identityMetadata: 'https://login.microsoftonline.com/common/.well-known/openid-configuration',
     skipUserProfile: true,
-    responseType: 'id_token code',
+    responseType: 'code',
     responseMode: 'query'
 };
-
-passport.use(new OIDCStrategy(oidStrategyv2,
+let strategy = null;
+if ( process.env.AUTHBOT_STRATEGY == 'oidStrategyv1') {
+  strategy = oidStrategyv1;
+  console.log('using v1');
+}
+if ( process.env.AUTHBOT_STRATEGY == 'oidStrategyv2') {
+  strategy = oidStrategyv2;
+  console.log('using v2');
+}
+passport.use(new OIDCStrategy(strategy,
   function(iss, sub, profile, accessToken, refreshToken, done) {
   	console.log(profile);
 
