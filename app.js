@@ -1,3 +1,5 @@
+'user strict'
+
 var restify = require('restify');
 var builder = require('botbuilder');
 var passport = require('passport');
@@ -71,7 +73,7 @@ passport.deserializeUser(function(id, done) {
 
 // Use the v2 endpoint (applications configured by apps.dev.microsoft.com)
 let oidStrategyv2 = {
-    callbackURL: 'http://localhost:3979/api/OAuthCallback',
+    callbackURL: process.env.AUTHBOTH_CALLBACKHOST + '/api/OAuthCallback',
     realm: 'common',
     clientID: process.env.MICROSOFT_APP_ID,
     clientSecret: process.env.MICROSOFT_APP_PASSWORD,
@@ -84,7 +86,7 @@ let oidStrategyv2 = {
 
 // Use the v1 endpoint (applications configured by manage.windowsazure.com)
 let oidStrategyv1 = {
-    callbackURL: 'http://localhost:3979/api/OAuthCallback',
+    callbackURL: process.env.AUTHBOTH_CALLBACKHOST +'/api/OAuthCallback',
     realm: process.env.MICROSOFT_REALM,
     clientID: process.env.MICROSOFT_CLIENT_ID,
     clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
