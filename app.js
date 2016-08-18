@@ -86,8 +86,8 @@ let oidStrategyv2 = {
 let oidStrategyv1 = {
     callbackURL: 'http://localhost:3979/api/OAuthCallback',
     realm: process.env.MICROSOFT_REALM,
-    clientID: process.env.MICROSOFT_CLIENTID,
-    clientSecret: process.env.MICROSOFT_CLIENTSECRET,
+    clientID: process.env.MICROSOFT_CLIENT_ID,
+    clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
     oidcIssuer: undefined,
     identityMetadata: 'https://login.microsoftonline.com/common/.well-known/openid-configuration',
     skipUserProfile: true,
