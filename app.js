@@ -5,6 +5,9 @@ var builder = require('botbuilder');
 var passport = require('passport');
 var OIDCStrategy = require('passport-azure-ad').OIDCStrategy;
 
+const AuthResultKey = "authResult";
+const MagicNumberKey = "authMagicNumber";
+
 //=========================================================
 // Bot Setup
 //=========================================================
@@ -134,5 +137,12 @@ passport.use(new OIDCStrategy(strategy,
 //=========================================================
 
 bot.dialog('/', function (session) {
-    session.send("Hello World");
+    console.log(session);
+    if (!session.userData.users) {
+        session.userData.users = [];
+    } else {
+
+    }
+    session.send("Hi there! Welcome! Please click %s to sign in: ", "https://authbot.azurewebsites.net/login?sessionid=");
+    
 });
