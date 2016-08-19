@@ -5,6 +5,7 @@ var builder = require('botbuilder');
 var passport = require('passport');
 var OIDCStrategy = require('passport-azure-ad').OIDCStrategy;
 
+const querystring = require('querystring');
 const AuthResultKey = "authResult";
 const MagicNumberKey = "authMagicNumber";
 
@@ -47,19 +48,70 @@ var findByEmail = function (email, fn) {
 };
 
 server.use(restify.queryParser());
+server.use(restify.bodyParser());
 server.use(passport.initialize());
 
-server.get('/login',
-  passport.authenticate('azuread-openidconnect', { failureRedirect: '/login' }),
-  function (req, res) {
-    console.log('Login');
-  });
+server.get('/login', function(req, res, next) {
+  console.log('get login');
+  passport.authenticate('azuread-openidconnect', { failureRedirect: '/login', state: req.query.state }, function(err, user, info) {
+    console.log('login callback');
+    if (err) { return next(err); }
+    if (!user) { return res.redirect('/login'); }
+    req.logIn(user, function(err) {
+      if (err) { return next(err); }
+      return res.send('Welcome ' + req.user.displayName);
+    });
+  })(req, res, next);
+});
 
-server.get('/api/OAuthCallback',
-  passport.authenticate('azuread-openidconnect', { failureRedirect: '/login' }),
+// server.get('/login',
+//   function (req, res, next) {
+//     console.log('Login req');
+//     passport.authenticate('azuread-openidconnect', { failureRedirect: '/login', state: req.query.state });
+//   },
+//   function (req, res) {
+//     console.log('Login');
+//   });
+
+server.get('/api/OAuthCallback/',
+  passport.authenticate('azuread-openidconnect', { failureRedirect: '/login', state: 'ritatest' }),
   function (req, res) {
     console.log('Returned from AzureAD.');
-    console.log(req);
+    console.log('state: ' + req.query.state);
+    var botdata = req.query.state;
+    console.log('botdata: ' + botdata);
+    var addressId = botdata.split('|')[0];
+    var conversationId = botdata.split('|')[1];
+    console.log('addressId: ' + addressId + '|' + 'conversationId: ' + conversationId);
+
+    var msg =  { type: 'message',
+  timestamp: '2016-08-19T23:59:21.8521273Z',
+  text: 'hi',
+  attachments: [],
+  entities: [],
+  address: 
+   { id: addressId,
+     channelId: 'webchat',
+     user: { id: 'FVCBFTKEVD2', name: 'FVCBFTKEVD2' },
+     conversation: { id: conversationId },
+     bot: { id: 'authbot', name: 'authbot' },
+     serviceUrl: 'https://webchat.botframework.com',
+     useAuth: true },
+  source: 'webchat',
+  agent: 'botbuilder',
+  user: { id: 'FVCBFTKEVD2', name: 'FVCBFTKEVD2' } };
+
+  var address = { id: addressId,
+     channelId: 'webchat',
+     user: { id: 'FVCBFTKEVD2', name: 'FVCBFTKEVD2' },
+     conversation: { id: conversationId },
+     bot: { id: 'authbot', name: 'authbot' },
+     serviceUrl: 'https://webchat.botframework.com',
+     useAuth: true };
+
+    console.log('before bot receive');
+    bot.receive(msg); 
+    console.log('after bot receive');
     res.send('Welcome ' + req.user.displayName);
   });
 
@@ -84,7 +136,8 @@ let oidStrategyv2 = {
     skipUserProfile: true,
     responseType: 'code',
     responseMode: 'query',
-    scope: ['email', 'profile']
+    scope: ['email', 'profile'],
+    passReqToCallback: true
 };
 
 // Use the v1 endpoint (applications configured by manage.windowsazure.com)
@@ -97,7 +150,8 @@ let oidStrategyv1 = {
     identityMetadata: 'https://login.microsoftonline.com/common/.well-known/openid-configuration',
     skipUserProfile: true,
     responseType: 'code',
-    responseMode: 'query'
+    responseMode: 'query',
+    passReqToCallback: true
 };
 let strategy = null;
 if ( process.env.AUTHBOT_STRATEGY == 'oidStrategyv1') {
@@ -109,8 +163,9 @@ if ( process.env.AUTHBOT_STRATEGY == 'oidStrategyv2') {
   console.log('using v2');
 }
 passport.use(new OIDCStrategy(strategy,
-  function(iss, sub, profile, accessToken, refreshToken, done) {
-  	console.log(profile);
+  function(req, iss, sub, profile, accessToken, refreshToken, done) {
+  	//console.log(profile);
+    //console.log('passport.use: ' + req);
 
     if (!profile.email) {
       return done(new Error("No email found"), null);
@@ -123,10 +178,12 @@ passport.use(new OIDCStrategy(strategy,
         }
         if (!user) {
           // "Auto-registration"
+          console.log('add new email');
           users.push(profile);
-          return done(null, profile);
+          return done(null, profile, {rita:'awesome'});
         }
-        return done(null, user);
+        console.log('retrieve email');
+        return done(null, user, {rita:'awesome'});
       });
     });
   }
@@ -137,12 +194,20 @@ passport.use(new OIDCStrategy(strategy,
 //=========================================================
 
 bot.dialog('/', function (session) {
-    console.log(session);
+    console.log('bot dialog');
+    console.log(session.message);
     if (!session.userData.users) {
         session.userData.users = [];
     } else {
 
     }
-    session.send("Hi there! Welcome! Please click %s to sign in: ", "https://authbot.azurewebsites.net/login?sessionid=");
+    console.log("message: " + session.message);
+    console.log("address: " + session.message.address);
+    console.log("convo: " + session.message.address.conversation.id);
+    //var state = querystring.stringify(session.message.address);
+    var state = session.message.address.id + "|" + session.message.address.conversation.id;
+
+    console.log("state: " + state);
+    session.send("Hi there! Welcome! Please click %s to sign in: ", "https://authbot.azurewebsites.net/login?state=" + state);
     
 });
