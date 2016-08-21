@@ -65,44 +65,24 @@ server.get('/login', function(req, res, next) {
   })(req, res, next);
 });
 
-// server.get('/login',
-//   function (req, res, next) {
-//     console.log('Login req');
-//     passport.authenticate('azuread-openidconnect', { failureRedirect: '/login', state: req.query.state });
-//   },
-//   function (req, res) {
-//     console.log('Login');
-//   });
-
 server.get('/api/OAuthCallback/',
   passport.authenticate('azuread-openidconnect', { failureRedirect: '/login', state: 'ritatest' }),
   function (req, res) {
     console.log('Returned from AzureAD.');
-    console.log('token: ' + req.query.token);
+    console.log('token: ' + req.query.code);
     console.log('state: ' + req.query.state);
 
-    var botdata = req.query.state;
-    console.log('botdata: ' + botdata);
-    var addressId = botdata.split('|')[0];
-    var conversationId = botdata.split('|')[1];
+    // TODO: decrypt
+    //var state = JSON.parse(decodeURIComponent(req.query.state));
+    //console.log('decoded and parsed state: ' + state);
+    // var addressId = state.addressId;
+    // var conversationId = state.conversationId;
+    var addressId = req.query.state.split('|')[0];
+    var conversationId = req.query.state.split('|')[1];
     console.log('addressId: ' + addressId + '|' + 'conversationId: ' + conversationId);
 
-    var msg =  { type: 'message',
-  timestamp: '2016-08-19T23:59:21.8521273Z',
-  text: 'hi',
-  attachments: [],
-  entities: [],
-  address: 
-   { id: addressId,
-     channelId: 'webchat',
-     user: { id: 'FVCBFTKEVD2', name: 'FVCBFTKEVD2' },
-     conversation: { id: conversationId },
-     bot: { id: 'authbot', name: 'authbot' },
-     serviceUrl: 'https://webchat.botframework.com',
-     useAuth: true },
-  source: 'webchat',
-  agent: 'botbuilder',
-  user: { id: 'FVCBFTKEVD2', name: 'FVCBFTKEVD2' } };
+    var token = req.query.code;
+    var code = 'zhang';
 
   var address = { id: addressId,
      channelId: 'webchat',
@@ -112,15 +92,8 @@ server.get('/api/OAuthCallback/',
      serviceUrl: 'https://webchat.botframework.com',
      useAuth: true };
 
-  var user = { id: '6MOefHwNrNo', name: '6MOefHwNrNo' };
-
-    // var address = JSON.parse(req.query.state);
-    // console.log('address: ' + address);
-    var token = 'rita';
-    var code = 'zhang';
-
-    var continueMsg = new builder.Message().address(address).text("signin?token=" + token + "&code=" + code);
-    bot.receive(continueMsg);
+    var continueMsg = new builder.Message().address(address).text("signin?token=" + token + "&code=" + code + "&name=" + req.user.displayName);
+    bot.receive(continueMsg.toMessage());
     res.send('Welcome ' + req.user.displayName);
   });
 
@@ -175,8 +148,6 @@ if ( process.env.AUTHBOT_STRATEGY == 'oidStrategyv2') {
 passport.use(new OIDCStrategy(strategy,
   function(req, iss, sub, profile, accessToken, refreshToken, done) {
     console.log('strategy returned');
-  	//console.log(profile);
-    //console.log('passport.use: ' + req);
 
     if (!profile.email) {
       console.log('no profile email');
@@ -207,11 +178,15 @@ passport.use(new OIDCStrategy(strategy,
 function login(session) {
     // Generate signin link
     console.log(session.message);
+    var addressId = session.message.address.id;
+    var conversationId = session.message.address.conversation.id;
+    // var resumptionCookie = JSON.stringify({addressId: addressId, conversationId:conversationId}); //JSON.stringify(session.message.address); 
+    // console.log('creating resumptionCookie: ' + resumptionCookie);
+    // resumptionCookie = encodeURIComponent(resumptionCookie);
+    // TODO: encrypt
+    var resumptionCookie = addressId + "|" + conversationId;
 
-    var resumptionCookie = JSON.stringify(session.message.address); // TODO: encrypt
-    console.log('creating resumptionCookie: ' + resumptionCookie);
-
-    var link = process.env.AUTHBOT_CALLBACKHOST + '/login?state=' + encodeURIComponent(resumptionCookie);
+    var link = process.env.AUTHBOT_CALLBACKHOST + '/login?state=' + resumptionCookie;
     console.log(link);
     builder.Prompts.text(session, "Please signin: " + link);
 }
@@ -221,10 +196,10 @@ bot.dialog('/', [
       session.beginDialog('signinPrompt');
   },
   function (session, results) {
-      if (results.response) {
+      if (results.response && results.username) {
           // They're logged in
           //var accessToken = session.privateConversationData.accessToken;
-
+          session.send("Welcome " + results.username + "! You are logged in.");
       } else {
           session.endConversation("Goodbye");
       }
@@ -247,17 +222,25 @@ bot.dialog('signinPrompt', [
     }
   },
   function (session, results) {
-    // Resume with "signin?token=<token>&code=<code>"
-    console.log('resumed result: ' + result.response);
+    // Resume with "signin?token=<token>&code=<code>&name=<name>"
+    console.log('resumed result: ' + results.response);
 
     var parts = results.response.split('?');
     if (parts.length == 2 && parts[0] == 'signin') {
       var params = parts[1].split('&');
-      if (params.length == 2 && params[0] == 'token') {
+      if (params.length == 3 && params[0].indexOf('token') > -1) {
           // Store token
-          session.dialogData.token = params[0];
-          session.dialogData.code = params[1];
-          builder.Prompts.text(session, "Please enter the code on the screen");
+          var token = params[0].split('=')[1];
+          var code = params[1].split('=')[1];
+          var name = params[2].split('=')[1];
+
+          session.dialogData.username = name;
+          if(token && code){
+            session.beginDialog('validateCode', { code : code });
+
+          } else {
+            session.replaceDialog('signinPrompt', { invalid: true });
+          }
       } else {
           session.replaceDialog('signinPrompt', { invalid: true });
       }
@@ -266,19 +249,35 @@ bot.dialog('signinPrompt', [
     }
   },
   function (session, results) {
-      console.log('code result: ' + result.response);
-        var code = results.response;
-        if (code == session.dialogData.code) {
-            // // Store refresh token
-            // session.userData.refreshToken = session.dialogData.token;
-            // session.sendTyping();
-            // // ... Async call to convert refresh token to access token
-            // var accessToken = '';
-            // session.privateConversationData.accessToken = accessToken;
-            session.endDialog({ response: true });
-        } else {
-            session.send("I'm sorry... That was an invalid code");
-            session.endDialog({ response: false });
-        }
+      if (results.response) {
+          //code validated
+          session.endDialogWithResult({ response: true, username: session.dialogData.username});
+      }else {
+          session.endDialogWithResult({ response: false});
+      }
+  }
+]);
+
+bot.dialog('validateCode', [
+  function (session, args) {
+    if (!session.dialogData.code && args && args.code) {
+      session.dialogData.code = args.code;
+    }
+    builder.Prompts.text(session, "Please enter the code on the screen");
+  },
+  function (session, results) {
+    var code = results.response;
+    if (code === session.dialogData.code) {
+        // // Store refresh token
+        // session.userData.refreshToken = session.dialogData.token;
+        // session.sendTyping();
+        // // ... Async call to convert refresh token to access token
+        // var accessToken = '';
+        // session.privateConversationData.accessToken = accessToken;
+        session.endDialogWithResult({ response: true });
+    } else {
+        session.send("hmm... Looks like that was an invalid code. Please try again.");
+        session.replaceDialog('validateCode', {code: session.dialogData.code});
+    }
   }
 ]);
