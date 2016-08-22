@@ -79,14 +79,16 @@ server.get('/api/OAuthCallback/',
     // var conversationId = state.conversationId;
     var addressId = req.query.state.split('|')[0];
     var conversationId = req.query.state.split('|')[1];
-    console.log('addressId: ' + addressId + '|' + 'conversationId: ' + conversationId);
+    var userId = req.query.state.split('|')[2];
+
+    console.log('addressId: ' + addressId + '|' + 'conversationId: ' + conversationId + '|' + 'userId: ' + userId);
 
     var token = req.query.code;
     var code = 'zhang';
 
   var address = { id: addressId,
      channelId: 'webchat',
-     user: { id: '6MOefHwNrNo', name: '6MOefHwNrNo' },
+     user: { id: userId, name: userId },
      conversation: { id: conversationId },
      bot: { id: 'authbot', name: 'authbot' },
      serviceUrl: 'https://webchat.botframework.com',
@@ -180,11 +182,12 @@ function login(session) {
     console.log(session.message);
     var addressId = session.message.address.id;
     var conversationId = session.message.address.conversation.id;
+    var userId = session.message.address.user.id;
     // var resumptionCookie = JSON.stringify({addressId: addressId, conversationId:conversationId}); //JSON.stringify(session.message.address); 
     // console.log('creating resumptionCookie: ' + resumptionCookie);
     // resumptionCookie = encodeURIComponent(resumptionCookie);
     // TODO: encrypt
-    var resumptionCookie = addressId + "|" + conversationId;
+    var resumptionCookie = addressId + "|" + conversationId + "|" + userId;
 
     var link = process.env.AUTHBOT_CALLBACKHOST + '/login?state=' + resumptionCookie;
     console.log(link);
