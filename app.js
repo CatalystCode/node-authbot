@@ -51,14 +51,14 @@ server.get('/login', function(req, res, next) {
   console.log('get login');
   console.log("passed in state: " + req.query.state);
   passport.authenticate('azuread-openidconnect', { failureRedirect: '/login', state: req.query.state }, function(err, user, info) {
-    console.log('login callback');
-    if (err) { return next(err); }
-    if (!user) { return res.redirect('/login'); }
-    req.logIn(user, function(err) {
-      if (err) { return next(err); }
-      return res.send('Welcome ' + req.user.displayName);
-    });
-  })(req, res, next);
+      console.log('login callback');
+      if (err) { console.log(err); return next(err); }
+      if (!user) { return res.redirect('/login'); }
+      req.logIn(user, function(err) {
+        if (err) { return next(err); }
+        return res.send('Welcome ' + req.user.displayName);
+      });
+    })(req, res, next);
 });
 
 server.get('/api/OAuthCallback/',
@@ -107,12 +107,13 @@ passport.deserializeUser(function(id, done) {
 });
 
 // Use the v2 endpoint (applications configured by apps.dev.microsoft.com)
+var realm = process.env.MICROSOFT_REALM;
 let oidStrategyv2 = {
     callbackURL: process.env.AUTHBOT_CALLBACKHOST + '/api/OAuthCallback',
-    realm: 'common',
+    realm: realm,
     clientID: process.env.MICROSOFT_APP_ID,
     clientSecret: process.env.MICROSOFT_APP_PASSWORD,
-    identityMetadata: 'https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration',
+    identityMetadata: 'https://login.microsoftonline.com/' + realm + '/v2.0/.well-known/openid-configuration',
     skipUserProfile: true,
     responseType: 'code',
     responseMode: 'query',
@@ -121,6 +122,7 @@ let oidStrategyv2 = {
 };
 
 // Use the v1 endpoint (applications configured by manage.windowsazure.com)
+// This works against Azure AD
 let oidStrategyv1 = {
     callbackURL: process.env.AUTHBOT_CALLBACKHOST +'/api/OAuthCallback',
     realm: process.env.MICROSOFT_REALM,
