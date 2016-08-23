@@ -4,6 +4,7 @@ var restify = require('restify');
 var builder = require('botbuilder');
 var passport = require('passport');
 var OIDCStrategy = require('passport-azure-ad').OIDCStrategy;
+const crypto = require('crypto');
 
 //=========================================================
 // Bot Setup
@@ -80,7 +81,8 @@ server.get('/api/OAuthCallback/',
     console.log('addressId: ' + addressId + '|' + 'conversationId: ' + conversationId + '|' + 'userId: ' + userId);
 
     var authcode = req.query.code;
-    var code = 'zhang';
+    var code = crypto.randomBytes(4).toString('hex');
+    console.log(code);
 
   var address = { id: addressId,
      channelId: 'webchat',
@@ -229,7 +231,6 @@ bot.dialog('workPrompt', [
   },
   function (session, results){
       var prompt = results.response;
-      console.log('prompt'  + prompt);
       if (prompt === 'logout') {
         session.userData.username = null;
         session.userData.useremail = null;
