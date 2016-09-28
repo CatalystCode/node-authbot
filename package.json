@@ -1,6 +1,6 @@
 {
-  "name": "node-bot-framework-auth-example",
-  "version": "1.0.0",
+  "name": "node-authbot",
+  "version": "0.1.0",
   "description": "",
   "main": "app.js",
   "scripts": {
@@ -8,17 +8,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bnookala/node-bot-framework-auth-example.git"
+    "url": "git+https://github.com/CatalystCode/node-authbot.git"
   },
   "engines": {
     "node": ">=6.0.0"
   },
-  "author": "Bhargav Nookala <nooknb@gmail.com>",
+  "author": "Rita Zhang <ritazh@microsoft.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/bnookala/node-bot-framework-auth-example/issues"
+    "url": "https://github.com/CatalystCode/node-authbot/issues"
   },
-  "homepage": "https://github.com/bnookala/node-bot-framework-auth-example#readme",
+  "homepage": "https://github.com/CatalystCode/node-authbot#readme",
   "dependencies": {
     "botbuilder": "^3.2.3",
     "passport": "^0.3.2",

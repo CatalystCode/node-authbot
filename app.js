@@ -109,7 +109,8 @@ passport.deserializeUser(function(id, done) {
 });
 
 // Use the v2 endpoint (applications configured by apps.dev.microsoft.com)
-var realm = process.env.MICROSOFT_REALM;
+// For passport-azure-ad v2.0.0, had to set realm = 'common' to ensure authbot works on azure app service
+var realm = process.env.MICROSOFT_REALM; 
 let oidStrategyv2 = {
     callbackURL: process.env.AUTHBOT_CALLBACKHOST + '/api/OAuthCallback',
     realm: realm,
