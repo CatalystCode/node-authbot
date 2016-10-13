@@ -1,10 +1,11 @@
-'user strict'
+'use strict';
 
 const restify = require('restify');
 const builder = require('botbuilder');
 const passport = require('passport');
 const OIDCStrategy = require('passport-azure-ad').OIDCStrategy;
 const crypto = require('crypto');
+const querystring = require('querystring');
 
 //=========================================================
 // Bot Setup
@@ -36,52 +37,34 @@ server.use(restify.bodyParser());
 server.use(passport.initialize());
 
 server.get('/login', function (req, res, next) {
-  console.log('get login');
-  console.log("passed in state: " + req.query.state);
-  passport.authenticate('azuread-openidconnect', { failureRedirect: '/login', state: req.query.state }, function (err, user, info) {
-    console.log('login callback');
-    if (err) { console.log(err); return next(err); }
-    if (!user) { return res.redirect('/login'); }
+  passport.authenticate('azuread-openidconnect', { failureRedirect: '/login', state: req.query.address }, function (err, user, info) {
+    if (err) {
+      console.log(err);
+      return next(err);
+    }
+    if (!user) {
+      return res.redirect('/login');
+    }
     req.logIn(user, function (err) {
-      if (err) { return next(err); }
-      return res.send('Welcome ' + req.user.displayName);
+      if (err) {
+        return next(err);
+      } else {
+        return res.send('Welcome ' + req.user.displayName);
+      }
     });
   })(req, res, next);
 });
 
 server.get('/api/OAuthCallback/',
-  passport.authenticate('azuread-openidconnect', { failureRedirect: '/login', state: 'ritatest' }),
-  function (req, res) {
-    console.log('Returned from AzureAD.');
-    console.log('authcode: ' + req.query.code);
-    console.log('state: ' + req.query.state);
+  passport.authenticate('azuread-openidconnect', { failureRedirect: '/login' }),
+  (req, res) => {
 
     // TODO: decrypt
-    //var state = JSON.parse(decodeURIComponent(req.query.state));
-    //console.log('decoded and parsed state: ' + state);
-    // var addressId = state.addressId;
-    // var conversationId = state.conversationId;
-    var addressId = req.query.state.split('|')[0];
-    var conversationId = req.query.state.split('|')[1];
-    var userId = req.query.state.split('|')[2];
+    const address = JSON.parse(req.query.state);
+    const magicCode = crypto.randomBytes(4).toString('hex');
 
-    console.log('addressId: ' + addressId + '|' + 'conversationId: ' + conversationId + '|' + 'userId: ' + userId);
+    const messageData = { magicCode: magicCode, authCode: req.query.code, userId: address.user.id, name: req.user.displayName, email: req.user.email };
 
-    var authcode = req.query.code;
-    var code = crypto.randomBytes(4).toString('hex');
-    console.log(code);
-
-    var address = {
-      id: addressId,
-      channelId: 'webchat',
-      user: { id: userId, name: userId },
-      conversation: { id: conversationId },
-      bot: { id: 'authbot', name: 'authbot' },
-      serviceUrl: 'https://webchat.botframework.com',
-      useAuth: true
-    };
-
-    var continueMsg = new builder.Message().address(address).text("signin?authcode=" + authcode + "&code=" + code + "&name=" + req.user.displayName + "&email=" + req.user.email);
     bot.receive(continueMsg.toMessage());
     res.send('Welcome ' + req.user.displayName + '! Please copy this number and paste it back to your chat so your authentication can complete: ' + code);
   });
@@ -135,7 +118,7 @@ if (process.env.AUTHBOT_STRATEGY == 'oidStrategyv2') {
 }
 
 passport.use(new OIDCStrategy(strategy,
-  function (req, iss, sub, profile, accessToken, refreshToken, done) {
+  (req, iss, sub, profile, accessToken, refreshToken, done) => {
     console.log('strategy returned');
     console.log('accessToken: ' + accessToken);
     console.log('refreshToken: ' + refreshToken);
@@ -145,7 +128,7 @@ passport.use(new OIDCStrategy(strategy,
       return done(new Error("No email found"), null);
     }
     // asynchronous verification, for effect...
-    process.nextTick(function () {
+    process.nextTick(() => {
       return done(null, profile);
     });
   }
@@ -156,43 +139,35 @@ passport.use(new OIDCStrategy(strategy,
 //=========================================================
 function login(session) {
   // Generate signin link
-  console.log(session.message);
-  var addressId = session.message.address.id;
-  var conversationId = session.message.address.conversation.id;
-  var userId = session.message.address.user.id;
-  // var resumptionCookie = JSON.stringify({addressId: addressId, conversationId:conversationId}); //JSON.stringify(session.message.address); 
-  // console.log('creating resumptionCookie: ' + resumptionCookie);
-  // resumptionCookie = encodeURIComponent(resumptionCookie);
-  // TODO: encrypt
-  var resumptionCookie = addressId + "|" + conversationId + "|" + userId;
+  const address = session.message.address;
 
-  var link = process.env.AUTHBOT_CALLBACKHOST + '/login?state=' + resumptionCookie;
-  console.log(link);
+  // TODO: Encrypt the address string
+  const link = process.env.AUTHBOT_CALLBACKHOST + '/login?address=' + querystring.escape(JSON.stringify(address));
   builder.Prompts.text(session, "Please signin: " + link);
 }
 
 bot.dialog('/', [
-  function (session, args, next) {
-    console.log(session.userData.useremail);
+  (session, args, next) => {
+    console.log(session.userData.userEmail);
 
-    if (!session.userData.useremail) {
+    if (!session.userData.userEmail) {
       session.beginDialog('signinPrompt');
     } else {
       next();
     }
   },
-  function (session, results, next) {
-    if (session.userData.useremail) {
+  (session, results, next) => {
+    if (session.userData.userEmail) {
       // They're logged in
       //var accessToken = session.privateConversationData.accessToken;
-      session.send("Welcome " + session.userData.useremail + "! You are currently logged in. To quit, type 'quit'. To log out, type 'logout'. ");
+      session.send("Welcome " + session.userData.userEmail + "! You are currently logged in. To quit, type 'quit'. To log out, type 'logout'. ");
       session.beginDialog('workPrompt');
     } else {
       session.endConversation("Goodbye.");
     }
   },
-  function (session, results) {
-    if (!session.userData.useremail) {
+  (session, results) => {
+    if (!session.userData.userEmail) {
       session.endConversation("Goodbye. You have been logged out.");
     } else {
       session.endConversation("Goodbye.");
@@ -201,14 +176,14 @@ bot.dialog('/', [
 ]);
 
 bot.dialog('workPrompt', [
-  function (session) {
+  (session) => {
     builder.Prompts.text(session, "Type something to continue...");
   },
-  function (session, results) {
+  (session, results) => {
     var prompt = results.response;
     if (prompt === 'logout') {
-      session.userData.username = null;
-      session.userData.useremail = null;
+      session.userData.userName = null;
+      session.userData.userEmail = null;
       session.endDialog();
     } else if (prompt === 'quit') {
       session.endDialog();
@@ -219,7 +194,7 @@ bot.dialog('workPrompt', [
 ]);
 
 bot.dialog('signinPrompt', [
-  function (session, args) {
+  (session, args) => {
     console.log('signinPrompt');
     if (args && args.invalid) {
       // Re-prompt the user to click the link
@@ -234,40 +209,22 @@ bot.dialog('signinPrompt', [
       }
     }
   },
-  function (session, results) {
-    // Resume with "signin?authcode=<authcode>&code=<code>&name=<name>"
+  (session, results) => {
+    // Resume with "signin?authCode=<authCode>&code=<code>&name=<name>"
     console.log('resumed result: ' + results.response);
 
-    var parts = results.response.split('?');
-    if (parts.length == 2 && parts[0] == 'signin') {
-      var params = parts[1].split('&');
-      if (params.length == 4 && params[0].indexOf('authcode') > -1) {
-        var authcode = params[0].split('=')[1];
-        var code = params[1].split('=')[1];
-        var name = params[2].split('=')[1];
-        var email = params[3].split('=')[1];
-
-        session.dialogData.username = name;
-        session.dialogData.useremail = email;
-
-        if (authcode && code) {
-          session.beginDialog('validateCode', { code: code, authcode: authcode });
-
-        } else {
-          session.replaceDialog('signinPrompt', { invalid: true });
-        }
-      } else {
-        session.replaceDialog('signinPrompt', { invalid: true });
-      }
+    session.userData.loginData = JSON.parse(results.response);
+    if (session.userData.loginData && session.userData.loginData.magicCode && session.userData.loginData.authCode) {
+      session.beginDialog('validateCode');
     } else {
       session.replaceDialog('signinPrompt', { invalid: true });
     }
   },
-  function (session, results) {
+  (session, results) => {
     if (results.response) {
       //code validated
-      session.userData.username = session.dialogData.username;
-      session.userData.useremail = session.dialogData.useremail;
+      session.userData.userName = session.userData.loginData.userName;
+      session.userData.userEmail = session.dialogData.loginData.userEmail;
       session.endDialogWithResult({ response: true });
     } else {
       session.endDialogWithResult({ response: false });
@@ -276,32 +233,22 @@ bot.dialog('signinPrompt', [
 ]);
 
 bot.dialog('validateCode', [
-  function (session, args) {
-    if (!session.dialogData.code && args && args.code && args.authcode) {
-      session.dialogData.code = args.code;
-      session.dialogData.authcode = args.authcode;
-    }
+  (session) => {
     builder.Prompts.text(session, "Please enter the code you received or type 'quit' to end. ");
   },
-  function (session, results) {
-    var code = results.response;
+  (session, results) => {
+    const code = results.response;
     if (code === 'quit') {
       session.endDialogWithResult({ response: false });
     } else {
-      if (code === session.dialogData.code) {
+      if (code === session.userData.loginData.magicCode) {
         // Authenticated, save
-        session.userData.authcode = session.dialogData.authcode
+        session.userData.authCode = session.userData.loginData.authCode;
         // TODO: Authorize, then save
-        // Store authcode
-        // session.userData.authcode = session.dialogData.authcode;
-        // session.sendTyping();
-        // // ... Async call to convert refresh token to access token
-        // var accessToken = '';
-        // session.privateConversationData.accessToken = accessToken;
         session.endDialogWithResult({ response: true });
       } else {
         session.send("hmm... Looks like that was an invalid code. Please try again.");
-        session.replaceDialog('validateCode', { code: session.dialogData.code, authcode: session.dialogData.authcode });
+        session.replaceDialog('validateCode');
       }
     }
   }
