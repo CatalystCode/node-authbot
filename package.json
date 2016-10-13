@@ -23,6 +23,7 @@
     "botbuilder": "^3.2.3",
     "passport": "^0.3.2",
     "passport-azure-ad": "2.0.0",
+    "querystring": "^0.2.0",
     "request": "^2.74.0",
     "restify": "^4.1.1"
   }
