@@ -1,6 +1,7 @@
 env.ps1
 env.sh
 node_modules/
+.env
 
 
 # Created by https://www.gitignore.io/api/visualstudiocode,windows,node
