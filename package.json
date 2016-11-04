@@ -20,11 +20,12 @@
   },
   "homepage": "https://github.com/CatalystCode/node-authbot#readme",
   "dependencies": {
-    "botbuilder": "^3.2.3",
+    "botbuilder": "^3.4.4",
     "dotenv": "^2.0.0",
     "passport": "^0.3.2",
-    "passport-azure-ad": "2.0.0",
-    "request": "^2.74.0",
-    "restify": "^4.1.1"
+    "passport-azure-ad": "^3.0.0",
+    "request": "^2.76.0",
+    "restify": "^4.2.0",
+    "express-session": "^1.14.2"
   }
 }
