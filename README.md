@@ -27,8 +27,19 @@ Push directly to Azure Web App:
      The [dev branch](https://github.com/CatalystCode/node-authbot/tree/dev) has been setup to push directly to Azure web app
 
 Setup the bot:
-* Update [env.template.sh](env.template.sh) with our keys, then run it to set those environment variables. NOTE: Please do not check this file into your final application repo.
+* Copy [.env.template](.env.template) and name it .env with your own keys, then run it to set those environment variables. NOTE: Please do not check this file into your final application repo.
 * Follow the instructions on [Bot Framework website](https://dev.botframework.com/bots) to setup Channels.
+* [Optional] If the bot is hosted on Azure App Service, make sure to increase the `maxQueryString` limit by updating the `web.config` file in `$HOME/site/wwwroot` like this:
+
+```
+<security>
+	  <requestFiltering>
+	  	<requestLimits maxQueryString="10000"/>
+	  	...
+	  </requestFiltering>
+</security>
+
+```
 
 ## Acknowledgement
 Many thanks to [@sozercan](https://github.com/sozercan) and [@GeekTrainer](https://github.com/GeekTrainer) for your contribution.
