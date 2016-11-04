@@ -6,11 +6,11 @@ _A bot that authenticates users and get profile information about the user_.
 
 ![auth Bot Demo](botdemo.gif)
 
-This bot enables users to authenticate with their Microsoft id or their AD domain.
+This bot enables users to authenticate with their Microsoft id and/or their AD domain.
 
 ## Features
 * Support endpoints V1 (only supports AD accounts)
-* Support endpoints V2 (should support both AD accounts and Microsoft accounts, currently only Microsoft accounts work)
+* Support endpoints V2 (now supports both AD accounts and Microsoft accounts)
 
 Allow easy and secure sign in, even in chat sessions including multiple users
 
@@ -30,8 +30,8 @@ Setup the bot:
 * Update [env.template.sh](env.template.sh) with our keys, then run it to set those environment variables. NOTE: Please do not check this file into your final application repo.
 * Follow the instructions on [Bot Framework website](https://dev.botframework.com/bots) to setup Channels.
 
-## Usage
-
+## Acknowledgement
+Many thanks to [@sozercan](https://github.com/sozercan) and [@GeekTrainer](https://github.com/GeekTrainer) for your contribution.
 
 
 ## License

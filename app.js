@@ -129,8 +129,6 @@ if ( process.env.AUTHBOT_STRATEGY == 'oidStrategyv2') {
 
 passport.use(new OIDCStrategy(strategy,
   (req, iss, sub, profile, accessToken, refreshToken, done) => {
-    console.log('passort use...');
-    console.log(profile);
     if (!profile.displayName) {
       return done(new Error("No oid found"), null);
     }
