@@ -3,7 +3,7 @@
 _A bot that authenticates users and get profile information about the user_.
 
 [Checkout out the bot on Skype](https://join.skype.com/bot/dce91571-f312-4395-8602-91a145d1f52a)
-![Auth Bot Demo in Skype](botdemo.gif)
+![Auth Bot Demo in Skype](botdemoskype.gif)
 
 [Check out the demo site](https://authbot.azurewebsites.net/)
 
