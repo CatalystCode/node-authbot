@@ -71,6 +71,7 @@ server.get('/api/OAuthCallback/',
     const messageData = { magicCode: magicCode, authCode: req.query.code, userId: address.user.id, name: req.user.displayName, email: req.user.upn };
     
     var continueMsg = new builder.Message().address(address).text(JSON.stringify(messageData));
+    console.log(continueMsg.toMessage());
 
     bot.receive(continueMsg.toMessage());
     res.send('Welcome ' + req.user.displayName + '! Please copy this number and paste it back to your chat so your authentication can complete: ' + magicCode);
@@ -148,8 +149,23 @@ function login(session) {
 
   // TODO: Encrypt the address string
   const link = process.env.AUTHBOT_CALLBACKHOST + '/login?address=' + querystring.escape(JSON.stringify(address));
-  builder.Prompts.text(session, "Please signin: " + link);
+  
+
+  var msg = new builder.Message(session) 
+    .attachments([ 
+        new builder.SigninCard(session) 
+            .text("Please click this link") 
+            .button("signin", link) 
+    ]); 
+  session.send(msg);
+  builder.Prompts.text(session, "You must first sign into your account.");
 }
+bot.dialog('signin', [
+  (session, results) => {
+    console.log('signin callback: ' + results);
+    session.endDialog();
+  }
+]);
 
 bot.dialog('/', [
   (session, args, next) => {
@@ -211,6 +227,7 @@ bot.dialog('signinPrompt', [
   },
   (session, results) => {
     //resuming
+    console.log('resume: ' + results);
     session.userData.loginData = JSON.parse(results.response);
     if (session.userData.loginData && session.userData.loginData.magicCode && session.userData.loginData.authCode) {
       session.beginDialog('validateCode');

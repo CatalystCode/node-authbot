@@ -2,11 +2,13 @@
 
 _A bot that authenticates users and get profile information about the user_.
 
+[Checkout out the bot on Skype](https://join.skype.com/bot/dce91571-f312-4395-8602-91a145d1f52a)
+![Auth Bot Demo in Skype](botdemo.gif)
+
 [Check out the demo site](https://authbot.azurewebsites.net/)
 
-![auth Bot Demo](botdemo.gif)
-
 This bot enables users to authenticate with their Microsoft id and/or their AD domain.
+![Auth Bot Demo in browser](botdemoweb.gif)
 
 ## Features
 * Support endpoints V1 (only supports AD accounts)
