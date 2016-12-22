@@ -9,7 +9,7 @@ const OIDCStrategy = require('passport-azure-ad').OIDCStrategy;
 const expressSession = require('express-session');
 const crypto = require('crypto');
 const querystring = require('querystring');
-
+const https = require('https');
 
 //bot application identity
 const MICROSOFT_APP_ID = envx("MICROSOFT_APP_ID");
@@ -277,6 +277,27 @@ bot.dialog('validateCode', [
         console.log('session.userData.accessToken:');
         console.log(session.userData.accessToken);
         // TODO: Authorize, then save
+
+        getUserData(session.userData.accessToken,
+          function (firstRequestError, firstTryUser) {
+            if (firstTryUser !== null) {
+              console.log('processing callback user');
+              req.session.user = firstTryUser;
+              res.render(
+                'sendMail',
+                {
+                  display_name: firstTryUser.displayName,
+                  user_principal_name: firstTryUser.userPrincipalName
+                }
+              );
+            }else{
+              console.log('no user returned');
+              if(firstRequestError){
+                console.error(firstRequestError);
+              }
+            }
+          }
+        );
         session.endDialogWithResult({ response: true });
       } else {
         session.send("hmm... Looks like that was an invalid code. Please try again.");
@@ -285,3 +306,41 @@ bot.dialog('validateCode', [
     }
   }
 ]);
+
+function getUserData(accessToken, callback) {
+  console.log('getUserData');
+  console.log(accessToken);
+  var options = {
+    host: 'graph.windows.net',
+    path: '/me?api-version=1.6',
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: 'Bearer ' + accessToken
+    }
+  };
+  https.get(options, function (response) {
+    var body = '';
+    response.on('data', function (d) {
+      body += d;
+    });
+    response.on('end', function () {
+      var error;
+      if (response.statusCode === 200) {
+        callback(null, JSON.parse(body));
+      } else {
+        error = new Error();
+        error.code = response.statusCode;
+        error.message = response.statusMessage;
+        // The error body sometimes includes an empty space
+        // before the first character, remove it or it causes an error.
+        body = body.trim();
+        error.innerError = JSON.parse(body).error;
+        callback(error, null);
+      }
+    });
+  }).on('error', function (e) {
+    callback(e, null);
+  });
+}
