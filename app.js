@@ -81,7 +81,7 @@ server.get('/api/OAuthCallback/',
     console.log(req);
     const address = JSON.parse(req.query.state);
     const magicCode = crypto.randomBytes(4).toString('hex');
-    const messageData = { magicCode: magicCode, accessToken: req.user.accessToken, userId: address.user.id, name: req.user.displayName, email: req.user.email };
+    const messageData = { magicCode: magicCode, accessToken: req.user.accessToken, refreshToken: req.user.refreshToken, userId: address.user.id, name: req.user.displayName, email: req.user.preferred_username };
     
     var continueMsg = new builder.Message().address(address).text(JSON.stringify(messageData));
     console.log(continueMsg.toMessage());
@@ -151,6 +151,10 @@ passport.use(new OIDCStrategy(strategy,
       console.log('passport callback. access token:');
       console.log(accessToken);
       profile.accessToken = accessToken;
+      console.log('passport callback. refreshtoken:');
+      console.log(refreshToken);
+      profile.refreshToken = refreshToken;
+
       return done(null, profile);
     });
   }
@@ -185,16 +189,37 @@ bot.dialog('signin', [
 
 bot.dialog('/', [
   (session, args, next) => {
-    if (!session.userData.userName) {
+    if (!(session.userData.userName && session.userData.accessToken && session.userData.refreshToken)) {
+      session.send("Welcome! This bot retrieves the latest email for you after you login.");
       session.beginDialog('signinPrompt');
     } else {
       next();
     }
   },
   (session, results, next) => {
-    if (session.userData.userName) {
+    if (session.userData.userName && session.userData.accessToken && session.userData.refreshToken) {
       // They're logged in
+      console.log('refreshToken');
+      console.log(session.userData.refreshToken);
       session.send("Welcome " + session.userData.userName + "! You are currently logged in. To quit, type 'quit'. To log out, type 'logout'. ");
+      getUserLatestEmail(session.userData.accessToken,
+        function (requestError, result) {
+          if (result && result.value && result.value.length > 0) {
+            const responseMessage = 'Hi ' + session.userData.userName +  ', Your latest email is: ' + result.value[0].Subject;
+
+            console.log(responseMessage);
+            session.send(responseMessage);
+            getAccessTokenWithRefreshToken(session.userData.refreshToken);
+            
+          }else{
+            console.log('no user returned');
+            if(requestError){
+              console.error(requestError);
+              getAccessTokenWithRefreshToken(session.userData.refreshToken);
+            }
+          }
+        }
+      );
       session.beginDialog('workPrompt');
     } else {
       session.endConversation("Goodbye.");
@@ -233,12 +258,7 @@ bot.dialog('signinPrompt', [
       // Re-prompt the user to click the link
       builder.Prompts.text(session, "please click the signin link.");
     } else {
-      if (session.userData.refreshToken) {
-        // TODO: Authorization
-        //get access token from refresh token
-      } else {
-        login(session);
-      }
+      login(session);
     }
   },
   (session, results) => {
@@ -274,26 +294,12 @@ bot.dialog('validateCode', [
       if (code === session.userData.loginData.magicCode) {
         // Authenticated, save
         session.userData.accessToken = session.userData.loginData.accessToken;
+        session.userData.refreshToken = session.userData.loginData.refreshToken;
         console.log('session.userData.accessToken:');
         console.log(session.userData.accessToken);
-        // TODO: Authorize, then save
+        console.log('session.userData.refreshToken:');
+        console.log(session.userData.refreshToken);
 
-        getUserData(session.userData.accessToken,
-          function (requestError, result) {
-            if (result && result.value && result.value.length > 0) {
-              const responseMessage = 'Hi ' + session.userData.userName +  ', Your latest email subject: ' + result.value[0].Subject;
-
-              console.log(responseMessage);
-              session.send(responseMessage);
-              
-            }else{
-              console.log('no user returned');
-              if(requestError){
-                console.error(requestError);
-              }
-            }
-          }
-        );
         session.endDialogWithResult({ response: true });
       } else {
         session.send("hmm... Looks like that was an invalid code. Please try again.");
@@ -302,9 +308,27 @@ bot.dialog('validateCode', [
     }
   }
 ]);
+function getAccessTokenWithRefreshToken(refreshToken){
+  console.log('getAccessTokenWithRefreshToken');
+  var data = 'grant_type=refresh_token' 
+        + '&refresh_token=' + refreshToken
+        + '&client_id=' + process.env.MICROSOFT_CLIENT_ID
+        + '&client_secret=' + encodeURIComponent(process.env.MICROSOFT_CLIENT_SECRET) 
 
-function getUserData(accessToken, callback) {
-  console.log('getUserData');
+  var options = {
+      url: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+      body: data,
+      json: true,
+      headers : { 'Content-Type' : 'application/x-www-form-urlencoded' }
+  };
+  https.request(options, function (response) {
+    console.log('response returned from getting new accesstoken');
+    console.log(response);
+  });
+}
+
+function getUserLatestEmail(accessToken, callback) {
+  console.log('getUserLatestEmail');
   console.log(accessToken);
   var options = {
     host: 'outlook.office.com', //https://outlook.office.com/api/v2.0/me/messages
