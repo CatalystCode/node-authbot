@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config();
+const envx = require("envx");
 
 const restify = require('restify');
 const builder = require('botbuilder');
@@ -9,6 +9,18 @@ const OIDCStrategy = require('passport-azure-ad').OIDCStrategy;
 const expressSession = require('express-session');
 const crypto = require('crypto');
 const querystring = require('querystring');
+
+
+//bot application identity
+const MICROSOFT_APP_ID = envx("MICROSOFT_APP_ID");
+const MICROSOFT_APP_PASSWORD = envx("MICROSOFT_APP_PASSWORD");
+
+//oauth details
+const AZUREAD_APP_ID = envx("AZUREAD_APP_ID");
+const AZUREAD_APP_PASSWORD = envx("AZUREAD_APP_PASSWORD");
+const AZUREAD_APP_REALM = envx("AZUREAD_APP_REALM");
+const AUTHBOT_CALLBACKHOST = envx("AUTHBOT_CALLBACKHOST");
+const AUTHBOT_STRATEGY = envx("AUTHBOT_STRATEGY");
 
 //=========================================================
 // Bot Setup
@@ -22,10 +34,10 @@ server.listen(process.env.port || process.env.PORT || 3979, function () {
   
 // Create chat bot
 console.log('started...')
-console.log(process.env.MICROSOFT_APP_ID);
+console.log(MICROSOFT_APP_ID);
 var connector = new builder.ChatConnector({
-  appId: process.env.MICROSOFT_APP_ID,
-  appPassword: process.env.MICROSOFT_APP_PASSWORD
+  appId: MICROSOFT_APP_ID,
+  appPassword: MICROSOFT_APP_PASSWORD
 });
 var bot = new builder.UniversalBot(connector);
 server.post('/api/messages', connector.listen());
@@ -66,9 +78,10 @@ server.get('/api/OAuthCallback/',
   passport.authenticate('azuread-openidconnect', { failureRedirect: '/login' }),
   (req, res) => {
     console.log('OAuthCallback');
+    console.log(req);
     const address = JSON.parse(req.query.state);
     const magicCode = crypto.randomBytes(4).toString('hex');
-    const messageData = { magicCode: magicCode, authCode: req.query.code, userId: address.user.id, name: req.user.displayName, email: req.user.upn };
+    const messageData = { magicCode: magicCode, accessToken: req.user.accessToken, userId: address.user.id, name: req.user.displayName, email: req.user.email };
     
     var continueMsg = new builder.Message().address(address).text(JSON.stringify(messageData));
     console.log(continueMsg.toMessage());
@@ -87,19 +100,19 @@ passport.deserializeUser(function(id, done) {
 
 // Use the v2 endpoint (applications configured by apps.dev.microsoft.com)
 // For passport-azure-ad v2.0.0, had to set realm = 'common' to ensure authbot works on azure app service
-var realm = process.env.MICROSOFT_REALM; 
+var realm = AZUREAD_APP_REALM; 
 let oidStrategyv2 = {
-  redirectUrl: process.env.AUTHBOT_CALLBACKHOST + '/api/OAuthCallback',
+  redirectUrl: AUTHBOT_CALLBACKHOST + '/api/OAuthCallback',
   realm: realm,
-  clientID: process.env.MICROSOFT_APP_ID,
-  clientSecret: process.env.MICROSOFT_APP_PASSWORD,
+  clientID: AZUREAD_APP_ID,
+  clientSecret: AZUREAD_APP_PASSWORD,
   identityMetadata: 'https://login.microsoftonline.com/' + realm + '/v2.0/.well-known/openid-configuration',
-  skipUserProfile: true,
+  skipUserProfile: false,
   validateIssuer: false,
   //allowHttpForRedirectUrl: true,
   responseType: 'code',
   responseMode: 'query',
-  scope: ['email', 'profile'],
+  scope:['email', 'profile', 'offline_access', 'https://graph.microsoft.com/mail.read'],
   passReqToCallback: true
 };
 
@@ -121,10 +134,10 @@ let oidStrategyv1 = {
 };
 
 let strategy = null;
-if ( process.env.AUTHBOT_STRATEGY == 'oidStrategyv1') {
+if ( AUTHBOT_STRATEGY == 'oidStrategyv1') {
   strategy = oidStrategyv1;
 }
-if ( process.env.AUTHBOT_STRATEGY == 'oidStrategyv2') {
+if ( AUTHBOT_STRATEGY == 'oidStrategyv2') {
   strategy = oidStrategyv2;
 }
 
@@ -135,6 +148,9 @@ passport.use(new OIDCStrategy(strategy,
     }
     // asynchronous verification, for effect...
     process.nextTick(() => {
+      console.log('passport callback. access token:');
+      console.log(accessToken);
+      profile.accessToken = accessToken;
       return done(null, profile);
     });
   }
@@ -154,7 +170,7 @@ function login(session) {
   var msg = new builder.Message(session) 
     .attachments([ 
         new builder.SigninCard(session) 
-            .text("Please click this link") 
+            .text("Please click this link to sign in first.") 
             .button("signin", link) 
     ]); 
   session.send(msg);
@@ -229,7 +245,7 @@ bot.dialog('signinPrompt', [
     //resuming
     console.log('resume: ' + results);
     session.userData.loginData = JSON.parse(results.response);
-    if (session.userData.loginData && session.userData.loginData.magicCode && session.userData.loginData.authCode) {
+    if (session.userData.loginData && session.userData.loginData.magicCode && session.userData.loginData.accessToken) {
       session.beginDialog('validateCode');
     } else {
       session.replaceDialog('signinPrompt', { invalid: true });
@@ -257,7 +273,9 @@ bot.dialog('validateCode', [
     } else {
       if (code === session.userData.loginData.magicCode) {
         // Authenticated, save
-        session.userData.authCode = session.userData.loginData.authCode;
+        session.userData.accessToken = session.userData.loginData.accessToken;
+        console.log('session.userData.accessToken:');
+        console.log(session.userData.accessToken);
         // TODO: Authorize, then save
         session.endDialogWithResult({ response: true });
       } else {

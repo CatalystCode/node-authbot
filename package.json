@@ -26,6 +26,7 @@
     "passport-azure-ad": "^3.0.0",
     "request": "^2.76.0",
     "restify": "^4.2.0",
+    "envx": "^1.0.0",
     "express-session": "^1.14.2"
   }
 }
