@@ -112,7 +112,7 @@ let oidStrategyv2 = {
   //allowHttpForRedirectUrl: true,
   responseType: 'code',
   responseMode: 'query',
-  scope:['email', 'profile', 'offline_access', 'https://graph.microsoft.com/mail.read'],
+  scope:['email', 'profile', 'offline_access', 'https://outlook.office.com/mail.read'],
   passReqToCallback: true
 };
 
@@ -279,21 +279,22 @@ bot.dialog('validateCode', [
         // TODO: Authorize, then save
 
         getUserData(session.userData.accessToken,
-          function (firstRequestError, firstTryUser) {
-            if (firstTryUser !== null) {
-              console.log('processing callback user');
-              req.session.user = firstTryUser;
-              res.render(
-                'sendMail',
-                {
-                  display_name: firstTryUser.displayName,
-                  user_principal_name: firstTryUser.userPrincipalName
-                }
-              );
+          function (requestError, reqUserData) {
+            if (reqUserData !== null) {
+              console.log('processing callback reqUserData');
+              console.log(reqUserData);
+              req.session.user = reqUserData;
+              // res.render(
+              //   'sendMail',
+              //   {
+              //     display_name: firstTryUser.displayName,
+              //     user_principal_name: firstTryUser.userPrincipalName
+              //   }
+              // );
             }else{
               console.log('no user returned');
-              if(firstRequestError){
-                console.error(firstRequestError);
+              if(requestError){
+                console.error(requestError);
               }
             }
           }
@@ -311,8 +312,8 @@ function getUserData(accessToken, callback) {
   console.log('getUserData');
   console.log(accessToken);
   var options = {
-    host: 'graph.windows.net',
-    path: '/me?api-version=1.6',
+    host: 'outlook.office.com', //https://outlook.office.com/api/v2.0/me/messages
+    path: '/api/v2.0/me/messages',
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
