@@ -279,18 +279,13 @@ bot.dialog('validateCode', [
         // TODO: Authorize, then save
 
         getUserData(session.userData.accessToken,
-          function (requestError, reqUserData) {
-            if (reqUserData !== null) {
-              console.log('processing callback reqUserData');
-              console.log(reqUserData);
-              req.session.user = reqUserData;
-              // res.render(
-              //   'sendMail',
-              //   {
-              //     display_name: firstTryUser.displayName,
-              //     user_principal_name: firstTryUser.userPrincipalName
-              //   }
-              // );
+          function (requestError, result) {
+            if (result && result.value && result.value.length > 0) {
+              const responseMessage = 'Hi ' + session.userData.userName +  ', Your latest email subject: ' + result.value[0].Subject;
+
+              console.log(responseMessage);
+              session.send(responseMessage);
+              
             }else{
               console.log('no user returned');
               if(requestError){
@@ -313,7 +308,7 @@ function getUserData(accessToken, callback) {
   console.log(accessToken);
   var options = {
     host: 'outlook.office.com', //https://outlook.office.com/api/v2.0/me/messages
-    path: '/api/v2.0/me/messages',
+    path: '/api/v2.0/me/MailFolders/Inbox/messages?$top=1',
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
