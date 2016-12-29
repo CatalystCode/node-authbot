@@ -10,6 +10,7 @@ const expressSession = require('express-session');
 const crypto = require('crypto');
 const querystring = require('querystring');
 const https = require('https');
+const request = require('request');
 
 //bot application identity
 const MICROSOFT_APP_ID = envx("MICROSOFT_APP_ID");
@@ -209,13 +210,31 @@ bot.dialog('/', [
 
             console.log(responseMessage);
             session.send(responseMessage);
-            getAccessTokenWithRefreshToken(session.userData.refreshToken);
+            getAccessTokenWithRefreshToken(session.userData.refreshToken, (err, body, res) => {
+
+              if (err || body.error) {
+                session.send("Something happened, " + err);
+                session.endDialog();
+              }else{
+                console.log(body);
+              }
+              
+            });
             
           }else{
             console.log('no user returned');
             if(requestError){
               console.error(requestError);
-              getAccessTokenWithRefreshToken(session.userData.refreshToken);
+              getAccessTokenWithRefreshToken(session.userData.refreshToken, (err, body, res) => {
+
+                if (err || body.error) {
+                  session.send("Something happened, " + err);
+                  session.endDialog();
+                }else{
+                  console.log(body);
+                }
+                
+              });
             }
           }
         }
@@ -308,7 +327,7 @@ bot.dialog('validateCode', [
     }
   }
 ]);
-function getAccessTokenWithRefreshToken(refreshToken){
+function getAccessTokenWithRefreshToken(refreshToken, callback){
   console.log('getAccessTokenWithRefreshToken');
   var data = 'grant_type=refresh_token' 
         + '&refresh_token=' + refreshToken
@@ -316,15 +335,50 @@ function getAccessTokenWithRefreshToken(refreshToken){
         + '&client_secret=' + encodeURIComponent(process.env.MICROSOFT_CLIENT_SECRET) 
 
   var options = {
+      method: 'POST',
       url: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
       body: data,
-      json: true,
-      headers : { 'Content-Type' : 'application/x-www-form-urlencoded' }
+      // json: true,
+      headers: { 'Content-Type' : 'application/x-www-form-urlencoded' }
   };
-  https.request(options, function (response) {
-    console.log('response returned from getting new accesstoken');
-    console.log(response);
-  });
+
+  // var options = {
+  //   host: 'login.microsoftonline.com', //https://outlook.office.com/api/v2.0/me/messages
+  //   path: '/common/oauth2/v2.0/token',
+  //   method: 'POST',
+  //   headers: {
+  //     'Content-Type': 'application/x-www-form-urlencoded',
+  //     'Content-Length': Buffer.byteLength(data)
+  //   }
+  // };
+
+  // var postrequest = https.request(options, function (res) {
+  //   res.setEncoding('utf8');
+  //   res.on('data', function (chunk) {
+  //       console.log('Response: ' + chunk);
+  //   });
+  // });
+
+  // postrequest.write(data);
+  // postrequest.end();
+  request(options, function (err, res, body) {
+      if (err) return callback(err, body, res);
+      if (parseInt(res.statusCode / 100, 10) !== 2) {
+
+          console.log(body);
+          if (body.error) {
+              return callback(new Error(res.statusCode + ': ' + (body.error.message || body.error)), body, res);
+          }
+          if (!body.access_token) {
+              return callback(new Error(res.statusCode + ': refreshToken error'), body, res);
+          }
+          return callback(null, body, res);
+      }
+      callback(null, {
+          accessToken: body.access_token,
+          refreshToken: body.refresh_token
+      }, res);
+  }); 
 }
 
 function getUserLatestEmail(accessToken, callback) {
