@@ -1,13 +1,13 @@
 # AuthBot for Node.js with Microsoft Bot Framework
 
-_A bot that authenticates users and get profile information about the user_.
+_A bot that authenticates users and get profile information and the latest email for the logged in user_.
 
 [Checkout out the bot on Skype](https://join.skype.com/bot/dce91571-f312-4395-8602-91a145d1f52a)
 ![Auth Bot Demo in Skype](botdemoskype.gif)
 
 [Check out the demo site](https://authbot.azurewebsites.net/)
 
-This bot enables users to authenticate with their Microsoft id and/or their AD domain.
+This bot enables users to authenticate with their Microsoft id and/or their AD domain. Then the bot uses the accesstoken to retrieve the latest email for the user.
 ![Auth Bot Demo in browser](botdemoweb.gif)
 
 ## Features
@@ -29,7 +29,7 @@ Push directly to Azure Web App:
      The [dev branch](https://github.com/CatalystCode/node-authbot/tree/dev) has been setup to push directly to Azure web app
 
 Setup the bot:
-* Copy [.env.template](.env.template) and name it .env with your own keys, then run it to set those environment variables. NOTE: Please do not check this file into your final application repo.
+* Populate environment variables in [.env.template](.env.template).
 * Follow the instructions on [Bot Framework website](https://dev.botframework.com/bots) to setup Channels.
 * [Optional] If the bot is hosted on Azure App Service, make sure to increase the `maxQueryString` limit by updating the `web.config` file in `$HOME/site/wwwroot` like this:
 
