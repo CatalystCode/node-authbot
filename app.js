@@ -120,10 +120,10 @@ let oidStrategyv2 = {
 // Use the v1 endpoint (applications configured by manage.windowsazure.com)
 // This works against Azure AD
 let oidStrategyv1 = {
-  redirectUrl: process.env.AUTHBOT_CALLBACKHOST +'/api/OAuthCallback',
-  realm: process.env.MICROSOFT_REALM,
-  clientID: process.env.MICROSOFT_CLIENT_ID,
-  clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+  redirectUrl: AUTHBOT_CALLBACKHOST +'/api/OAuthCallback',
+  realm: realm,
+  clientID: AZUREAD_APP_ID,
+  clientSecret: AZUREAD_APP_PASSWORD,
   validateIssuer: false,
   //allowHttpForRedirectUrl: true,
   oidcIssuer: undefined,
@@ -169,7 +169,7 @@ function login(session) {
   const address = session.message.address;
 
   // TODO: Encrypt the address string
-  const link = process.env.AUTHBOT_CALLBACKHOST + '/login?address=' + querystring.escape(JSON.stringify(address));
+  const link = AUTHBOT_CALLBACKHOST + '/login?address=' + querystring.escape(JSON.stringify(address));
   
 
   var msg = new builder.Message(session) 
@@ -207,31 +207,33 @@ bot.dialog('/', [
         function (requestError, result) {
           if (result && result.value && result.value.length > 0) {
             const responseMessage = 'Hi ' + session.userData.userName +  ', Your latest email is: ' + result.value[0].Subject;
-
             console.log(responseMessage);
             session.send(responseMessage);
-            getAccessTokenWithRefreshToken(session.userData.refreshToken, (err, body, res) => {
-
-              if (err || body.error) {
-                session.send("Something happened, " + err);
-                session.endDialog();
-              }else{
-                console.log(body);
-              }
-              
-            });
+            session.beginDialog('workPrompt');
             
           }else{
             console.log('no user returned');
             if(requestError){
               console.error(requestError);
+              // Get a new valid access token with refresh token
               getAccessTokenWithRefreshToken(session.userData.refreshToken, (err, body, res) => {
 
                 if (err || body.error) {
-                  session.send("Something happened, " + err);
+                  session.send("Error while getting a new access token. Please try logout and login again. Error: " + err);
                   session.endDialog();
+
                 }else{
-                  console.log(body);
+                  session.userData.accessToken = body.accessToken;
+                  getUserLatestEmail(session.userData.accessToken,
+                    function (requestError, result) {
+                      if (result && result.value && result.value.length > 0) {
+                        const responseMessage = 'Hi ' + session.userData.userName +  ', Your latest email is: ' + result.value[0].Subject;
+                        console.log(responseMessage);
+                        session.send(responseMessage);
+                        session.beginDialog('workPrompt');
+                      }
+                    }
+                  );
                 }
                 
               });
@@ -239,7 +241,7 @@ bot.dialog('/', [
           }
         }
       );
-      session.beginDialog('workPrompt');
+      
     } else {
       session.endConversation("Goodbye.");
     }
@@ -260,8 +262,11 @@ bot.dialog('workPrompt', [
   (session, results) => {
     var prompt = results.response;
     if (prompt === 'logout') {
+      session.userData.loginData = null;
       session.userData.userName = null;
-      //session.userData.userEmail = null;
+      session.userData.accessToken = null;
+      session.userData.refreshToken = null;
+
       session.endDialog();
     } else if (prompt === 'quit') {
       session.endDialog();
@@ -331,41 +336,20 @@ function getAccessTokenWithRefreshToken(refreshToken, callback){
   console.log('getAccessTokenWithRefreshToken');
   var data = 'grant_type=refresh_token' 
         + '&refresh_token=' + refreshToken
-        + '&client_id=' + process.env.MICROSOFT_CLIENT_ID
-        + '&client_secret=' + encodeURIComponent(process.env.MICROSOFT_CLIENT_SECRET) 
+        + '&client_id=' + AZUREAD_APP_ID
+        + '&client_secret=' + encodeURIComponent(AZUREAD_APP_PASSWORD) 
 
   var options = {
       method: 'POST',
       url: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
       body: data,
-      // json: true,
+      json: true,
       headers: { 'Content-Type' : 'application/x-www-form-urlencoded' }
   };
 
-  // var options = {
-  //   host: 'login.microsoftonline.com', //https://outlook.office.com/api/v2.0/me/messages
-  //   path: '/common/oauth2/v2.0/token',
-  //   method: 'POST',
-  //   headers: {
-  //     'Content-Type': 'application/x-www-form-urlencoded',
-  //     'Content-Length': Buffer.byteLength(data)
-  //   }
-  // };
-
-  // var postrequest = https.request(options, function (res) {
-  //   res.setEncoding('utf8');
-  //   res.on('data', function (chunk) {
-  //       console.log('Response: ' + chunk);
-  //   });
-  // });
-
-  // postrequest.write(data);
-  // postrequest.end();
   request(options, function (err, res, body) {
       if (err) return callback(err, body, res);
       if (parseInt(res.statusCode / 100, 10) !== 2) {
-
-          console.log(body);
           if (body.error) {
               return callback(new Error(res.statusCode + ': ' + (body.error.message || body.error)), body, res);
           }
