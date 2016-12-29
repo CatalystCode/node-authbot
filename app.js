@@ -149,13 +149,8 @@ passport.use(new OIDCStrategy(strategy,
     }
     // asynchronous verification, for effect...
     process.nextTick(() => {
-      console.log('passport callback. access token:');
-      console.log(accessToken);
       profile.accessToken = accessToken;
-      console.log('passport callback. refreshtoken:');
-      console.log(refreshToken);
       profile.refreshToken = refreshToken;
-
       return done(null, profile);
     });
   }
@@ -200,14 +195,11 @@ bot.dialog('/', [
   (session, results, next) => {
     if (session.userData.userName && session.userData.accessToken && session.userData.refreshToken) {
       // They're logged in
-      console.log('refreshToken');
-      console.log(session.userData.refreshToken);
       session.send("Welcome " + session.userData.userName + "! You are currently logged in. To quit, type 'quit'. To log out, type 'logout'. ");
       getUserLatestEmail(session.userData.accessToken,
         function (requestError, result) {
           if (result && result.value && result.value.length > 0) {
-            const responseMessage = 'Hi ' + session.userData.userName +  ', Your latest email is: ' + result.value[0].Subject;
-            console.log(responseMessage);
+            const responseMessage = 'Hi ' + session.userData.userName +  ', Your latest email is: "' + result.value[0].Subject + '"';
             session.send(responseMessage);
             session.beginDialog('workPrompt');
             
@@ -227,8 +219,7 @@ bot.dialog('/', [
                   getUserLatestEmail(session.userData.accessToken,
                     function (requestError, result) {
                       if (result && result.value && result.value.length > 0) {
-                        const responseMessage = 'Hi ' + session.userData.userName +  ', Your latest email is: ' + result.value[0].Subject;
-                        console.log(responseMessage);
+                        const responseMessage = 'Hi ' + session.userData.userName +  ', Your latest email is: "' + result.value[0].Subject + '"';
                         session.send(responseMessage);
                         session.beginDialog('workPrompt');
                       }
@@ -287,7 +278,6 @@ bot.dialog('signinPrompt', [
   },
   (session, results) => {
     //resuming
-    console.log('resume: ' + results);
     session.userData.loginData = JSON.parse(results.response);
     if (session.userData.loginData && session.userData.loginData.magicCode && session.userData.loginData.accessToken) {
       session.beginDialog('validateCode');
@@ -319,10 +309,6 @@ bot.dialog('validateCode', [
         // Authenticated, save
         session.userData.accessToken = session.userData.loginData.accessToken;
         session.userData.refreshToken = session.userData.loginData.refreshToken;
-        console.log('session.userData.accessToken:');
-        console.log(session.userData.accessToken);
-        console.log('session.userData.refreshToken:');
-        console.log(session.userData.refreshToken);
 
         session.endDialogWithResult({ response: true });
       } else {
@@ -333,7 +319,6 @@ bot.dialog('validateCode', [
   }
 ]);
 function getAccessTokenWithRefreshToken(refreshToken, callback){
-  console.log('getAccessTokenWithRefreshToken');
   var data = 'grant_type=refresh_token' 
         + '&refresh_token=' + refreshToken
         + '&client_id=' + AZUREAD_APP_ID
@@ -366,8 +351,6 @@ function getAccessTokenWithRefreshToken(refreshToken, callback){
 }
 
 function getUserLatestEmail(accessToken, callback) {
-  console.log('getUserLatestEmail');
-  console.log(accessToken);
   var options = {
     host: 'outlook.office.com', //https://outlook.office.com/api/v2.0/me/messages
     path: '/api/v2.0/me/MailFolders/Inbox/messages?$top=1',
