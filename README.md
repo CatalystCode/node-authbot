@@ -8,7 +8,6 @@ _A bot that authenticates users and get profile information and the latest email
 [Check out the demo site](https://authbot.azurewebsites.net/)
 
 This bot enables users to authenticate with their Microsoft id and/or their AD domain. Then the bot uses the accesstoken to retrieve the latest email for the user.
-![Auth Bot Demo in browser](botdemoweb.gif)
 
 ## Features
 * Support endpoints V1 (only supports AD accounts)
