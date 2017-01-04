@@ -176,6 +176,7 @@ function login(session) {
   session.send(msg);
   builder.Prompts.text(session, "You must first sign into your account.");
 }
+
 bot.dialog('signin', [
   (session, results) => {
     console.log('signin callback: ' + results);
@@ -195,14 +196,40 @@ bot.dialog('/', [
   (session, results, next) => {
     if (session.userData.userName && session.userData.accessToken && session.userData.refreshToken) {
       // They're logged in
-      session.send("Welcome " + session.userData.userName + "! You are currently logged in. To quit, type 'quit'. To log out, type 'logout'. ");
-      getUserLatestEmail(session.userData.accessToken,
+      builder.Prompts.text(session, "Welcome " + session.userData.userName + "! You are currently logged in. To get the latest email, type 'email'. To quit, type 'quit'. To log out, type 'logout'. ");
+    } else {
+      session.endConversation("Goodbye.");
+    }
+  },
+  (session, results, next) => {
+    var resp = results.response;
+    if (resp === 'email') {
+      session.beginDialog('workPrompt');
+    } else if (resp === 'quit') {
+      session.endConversation("Goodbye.");
+    } else if (resp === 'logout') {
+      session.userData.loginData = null;
+      session.userData.userName = null;
+      session.userData.accessToken = null;
+      session.userData.refreshToken = null;
+      session.endConversation("You have logged out. Goodbye.");
+    } else {
+      next();
+    }
+  },
+  (session, results) => {
+    session.replaceDialog('/');
+  }
+]);
+
+bot.dialog('workPrompt', [
+  (session) => {
+    getUserLatestEmail(session.userData.accessToken,
         function (requestError, result) {
           if (result && result.value && result.value.length > 0) {
-            const responseMessage = 'Hi ' + session.userData.userName +  ', Your latest email is: "' + result.value[0].Subject + '"';
+            const responseMessage = 'Your latest email is: "' + result.value[0].Subject + '"';
             session.send(responseMessage);
-            session.beginDialog('workPrompt');
-            
+            builder.Prompts.confirm(session, "Retrieve the latest email again?");
           }else{
             console.log('no user returned');
             if(requestError){
@@ -213,15 +240,14 @@ bot.dialog('/', [
                 if (err || body.error) {
                   session.send("Error while getting a new access token. Please try logout and login again. Error: " + err);
                   session.endDialog();
-
                 }else{
                   session.userData.accessToken = body.accessToken;
                   getUserLatestEmail(session.userData.accessToken,
                     function (requestError, result) {
                       if (result && result.value && result.value.length > 0) {
-                        const responseMessage = 'Hi ' + session.userData.userName +  ', Your latest email is: "' + result.value[0].Subject + '"';
+                        const responseMessage = 'Your latest email is: "' + result.value[0].Subject + '"';
                         session.send(responseMessage);
-                        session.beginDialog('workPrompt');
+                        builder.Prompts.confirm(session, "Retrieve the latest email again?");
                       }
                     }
                   );
@@ -232,37 +258,13 @@ bot.dialog('/', [
           }
         }
       );
-      
-    } else {
-      session.endConversation("Goodbye.");
-    }
-  },
-  (session, results) => {
-    if (!session.userData.userName) {
-      session.endConversation("Goodbye. You have been logged out.");
-    } else {
-      session.endConversation("Goodbye.");
-    }
-  }
-]);
-
-bot.dialog('workPrompt', [
-  (session) => {
-    builder.Prompts.text(session, "Type something to continue...");
   },
   (session, results) => {
     var prompt = results.response;
-    if (prompt === 'logout') {
-      session.userData.loginData = null;
-      session.userData.userName = null;
-      session.userData.accessToken = null;
-      session.userData.refreshToken = null;
-
-      session.endDialog();
-    } else if (prompt === 'quit') {
-      session.endDialog();
-    } else {
+    if (prompt) {
       session.replaceDialog('workPrompt');
+    } else {
+      session.endDialog();
     }
   }
 ]);
@@ -318,6 +320,7 @@ bot.dialog('validateCode', [
     }
   }
 ]);
+
 function getAccessTokenWithRefreshToken(refreshToken, callback){
   var data = 'grant_type=refresh_token' 
         + '&refresh_token=' + refreshToken
