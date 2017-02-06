@@ -233,11 +233,13 @@ bot.dialog('workPrompt', [
           }else{
             console.log('no user returned');
             if(requestError){
+              console.log('requestError');
               console.error(requestError);
               // Get a new valid access token with refresh token
               getAccessTokenWithRefreshToken(session.userData.refreshToken, (err, body, res) => {
 
                 if (err || body.error) {
+                  console.log(err);
                   session.send("Error while getting a new access token. Please try logout and login again. Error: " + err);
                   session.endDialog();
                 }else{
@@ -322,6 +324,7 @@ bot.dialog('validateCode', [
 ]);
 
 function getAccessTokenWithRefreshToken(refreshToken, callback){
+  console.log("getAccessTokenWithRefreshToken");
   var data = 'grant_type=refresh_token' 
         + '&refresh_token=' + refreshToken
         + '&client_id=' + AZUREAD_APP_ID
@@ -376,12 +379,14 @@ function getUserLatestEmail(accessToken, callback) {
       } else {
         error = new Error();
         error.code = response.statusCode;
+        console.log(response.statusMessage);
         error.message = response.statusMessage;
         // The error body sometimes includes an empty space
         // before the first character, remove it or it causes an error.
-        body = body.trim();
-        error.innerError = JSON.parse(body).error;
-        callback(error, null);
+        // body = body.trim();
+        // console.log(body);
+        // error = body;
+        callback(response.statusMessage, null);
       }
     });
   }).on('error', function (e) {
