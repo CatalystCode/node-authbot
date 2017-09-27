@@ -89,6 +89,18 @@ server.get('/api/OAuthCallback/',
 
     bot.receive(continueMsg.toMessage());
     res.send('Welcome ' + req.user.displayName + '! Please copy this number and paste it back to your chat so your authentication can complete: ' + magicCode);
+
+  /* //For users who are deploying the bot on a website, if they want the user to receive the authentication code in html format (since some browsers don't support JSON..like IE) to improve user experience, Please replace line num 91 (res.send...) with the code below (or uncomment this code snippet):
+
+    var body = '<html><body>Welcome ' + req.user.displayName + '! Please copy this number and paste it back to your chat so your authentication can complete: ' + magicCode'</body></html>';  
+    res.writeHead(200, {
+            'Content-Length': Buffer.byteLength(body),
+            'Content-Type': 'text/html'
+        });        
+    res.write(body);
+    res.end(); 
+    
+   */
 });
 
 passport.serializeUser(function(user, done) {
